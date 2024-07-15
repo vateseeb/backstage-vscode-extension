@@ -1,21 +1,46 @@
 import axios from 'axios';
 import * as vscode from 'vscode';
 
-interface BackstageEntity {
-    kind: string;
+interface BackstageEntityMetadata {
     name: string;
-    description: string;
+    description?: string;
+    annotations?: Record<string, string>;
+    labels?: Record<string, string>;
+    tags?: string[];
+    links?: Array<{
+        url: string;
+        title?: string;
+        icon?: string;
+        type?: string;
+    }>;
+}
+
+interface BackstageEntitySpec {
+    type?: string;
+    lifecycle?: string;
+    owner?: string;
+    system?: string;
+    [key: string]: any; // For other potential fields in spec
+}
+
+interface BackstageEntity {
+    apiVersion: string;
+    kind: string;
+    metadata: BackstageEntityMetadata;
+    spec: BackstageEntitySpec;
 }
 
 interface BackstageCatalog {
     entities: BackstageEntity[];
     systems: Set<BackstageEntity>;
+    groups: Set<BackstageEntity>;
     kinds: Set<string>;
 }
 
 let backstageCatalog: BackstageCatalog = {
     entities: [],
     systems: new Set(),
+    groups: new Set(),
     kinds: new Set()
 };
 
@@ -48,22 +73,19 @@ async function fetchAndProcessEntities() {
 }
 
 async function fetchBackstageEntities(apiUrl: string): Promise<BackstageCatalog> {
-    const response = await axios.get(`${apiUrl}/catalog/entities`);
+    const response = await axios.get<BackstageEntity[]>(`${apiUrl}/catalog/entities`);
     
     if (debug) {
         showDebugInfo(response.data);
     }
 
-    const entities = response.data.map((entity: any) => ({
-        kind: entity.kind,
-        name: entity.metadata.name,
-        description: entity.metadata.description
-    }));
+    const entities = response.data;
 
     return {
         entities,
-        systems: new Set(entities.filter((entity: { kind: string; }) => entity.kind === 'System')),
-        kinds: new Set(entities.map((entity: { kind: string; }) => entity.kind))
+        systems: new Set(entities.filter(entity => entity.kind === 'System')),
+        groups: new Set(entities.filter(entity => entity.kind === 'Group')),
+        kinds: new Set(entities.map(entity => entity.kind))
     };
 }
 
@@ -83,6 +105,8 @@ function registerCompletionProviders() {
                     return provideSystemSuggestions();
                 } else if (linePrefix.endsWith('kind: ')) {
                     return provideKindSuggestions();
+                } else if (linePrefix.endsWith('owner: ')) {
+                    return provideGroupSuggestions();
                 }
                 return undefined;
             }
@@ -91,11 +115,11 @@ function registerCompletionProviders() {
 }
 
 function provideSystemSuggestions(): vscode.CompletionItem[] {
-    return Array.from(backstageCatalog.systems).map(entity => {
-        const completionItem = new vscode.CompletionItem(entity.name, vscode.CompletionItemKind.Value);
-        completionItem.detail = entity.description;
-        return completionItem;
-    });
+    return Array.from(backstageCatalog.systems).map(createCompletionItem);
+}
+
+function provideGroupSuggestions(): vscode.CompletionItem[] {
+    return Array.from(backstageCatalog.groups).map(createCompletionItem);
 }
 
 function provideKindSuggestions(): vscode.CompletionItem[] {
@@ -104,6 +128,12 @@ function provideKindSuggestions(): vscode.CompletionItem[] {
         completionItem.detail = `Backstage entity kind: ${kind}`;
         return completionItem;
     });
+}
+
+function createCompletionItem(entity: BackstageEntity): vscode.CompletionItem {
+    const completionItem = new vscode.CompletionItem(entity.metadata.name, vscode.CompletionItemKind.Value);
+    completionItem.detail = entity.metadata.description || `${entity.kind} entity`;
+    return completionItem;
 }
 
 export function deactivate() {}
