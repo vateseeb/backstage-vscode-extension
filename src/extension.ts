@@ -123,20 +123,26 @@ function registerCompletionProviders() {
         {
             provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
                 const linePrefix = document.lineAt(position).text.substr(0, position.character);
-                if (linePrefix.endsWith('system: ')) {
-                    return provideMapSuggestions(backstageSuggestions.systems, 'System');
-                } else if (linePrefix.endsWith('kind: ')) {
-                    return provideSetSuggestions(backstageSuggestions.kinds, 'Kind');
-                } else if (linePrefix.endsWith('owner: ')) {
-                    return provideMapSuggestions(backstageSuggestions.groups, 'Group');
-                } else if (linePrefix.endsWith('type: ')) {
-                    return provideSetSuggestions(backstageSuggestions.types, 'Type');
-                } else if (linePrefix.endsWith('lifecycle: ')) {
-                    return provideSetSuggestions(backstageSuggestions.lifecycles, 'Lifecycle');
-                } else if (linePrefix.endsWith('component:')) {
-                    return provideMapSuggestions(backstageSuggestions.components, 'Component');
-                } else if (linePrefix.endsWith('resource:')) {
-                    return provideMapSuggestions(backstageSuggestions.resources, 'Resource');
+                const match = linePrefix.match(/(\w+):\s*(\w*)$/);
+                
+                if (match) {
+                    const [, key, partialValue] = match;
+                    switch(key) {
+                        case 'system':
+                            return provideFilteredMapSuggestions(backstageSuggestions.systems, 'System', partialValue);
+                        case 'kind':
+                            return provideFilteredSetSuggestions(backstageSuggestions.kinds, 'Kind', partialValue);
+                        case 'owner':
+                            return provideFilteredMapSuggestions(backstageSuggestions.groups, 'Group', partialValue);
+                        case 'type':
+                            return provideFilteredSetSuggestions(backstageSuggestions.types, 'Type', partialValue);
+                        case 'lifecycle':
+                            return provideFilteredSetSuggestions(backstageSuggestions.lifecycles, 'Lifecycle', partialValue);
+                        case 'component':
+                            return provideFilteredMapSuggestions(backstageSuggestions.components, 'Component', partialValue);
+                        case 'resource':
+                            return provideFilteredMapSuggestions(backstageSuggestions.resources, 'Resource', partialValue);
+                    }
                 }
                 return undefined;
             }
@@ -144,18 +150,20 @@ function registerCompletionProviders() {
     );
 }
 
-function provideMapSuggestions(map: Map<string, string>, kind: string): vscode.CompletionItem[] {
-    return Array.from(map.entries()).map(([name, description]) => 
-        createCompletionItem(name, description, kind)
-    );
+function provideFilteredMapSuggestions(map: Map<string, string>, kind: string, partialValue: string): vscode.CompletionItem[] {
+    return Array.from(map.entries())
+        .filter(([name]) => name.toLowerCase().startsWith(partialValue.toLowerCase()))
+        .map(([name, description]) => createCompletionItem(name, description, kind));
 }
 
-function provideSetSuggestions(set: Set<string>, kind: string): vscode.CompletionItem[] {
-    return Array.from(set).map(value => {
-        const completionItem = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
-        completionItem.detail = `Backstage entity ${kind.toLowerCase()}: ${value}`;
-        return completionItem;
-    });
+function provideFilteredSetSuggestions(set: Set<string>, kind: string, partialValue: string): vscode.CompletionItem[] {
+    return Array.from(set)
+        .filter(value => value.toLowerCase().startsWith(partialValue.toLowerCase()))
+        .map(value => {
+            const completionItem = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
+            completionItem.detail = `Backstage entity ${kind.toLowerCase()}: ${value}`;
+            return completionItem;
+        });
 }
 
 function createCompletionItem(name: string, description: string, kind: string): vscode.CompletionItem {
