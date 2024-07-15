@@ -2,7 +2,7 @@
   "name": "backstage-catalog-helper",
   "displayName": "Backstage Catalog Helper",
   "description": "Connect with your Backstage server to get autocomplete suggestions for your Backstage entities",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.91.0"
   },
@@ -35,17 +35,17 @@
       }
     ],
     "configuration": {
-      "title": "Backstage Autocomplete",
+      "title": "Backstage Catalog Helper",
       "properties": {
-        "backstageAutocomplete.baseUrl": {
+        "backstageCatalogHelper.baseUrl": {
           "type": "string",
           "default": "",
           "description": "The base URL of your Backstage instance (e.g., https://your-backstage-instance.com)"
         },
-        "backstageAutocomplete.debug": {
+        "backstageCatalogHelper.debug": {
           "type": "boolean",
           "default": false,
-          "description": "Enable debug mode for the Backstage Autocomplete extension"
+          "description": "Enable debug mode for the Backstage Catalog Helper extension"
         }
       }
     }

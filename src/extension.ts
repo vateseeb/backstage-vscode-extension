@@ -51,8 +51,8 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 async function fetchAndProcessEntities() {
-    const backstageBaseUrl = vscode.workspace.getConfiguration().get('backstageAutocomplete.baseUrl') as string;
-    debug = vscode.workspace.getConfiguration().get('backstageAutocomplete.debug') === true;
+    const backstageBaseUrl = vscode.workspace.getConfiguration().get('backstageCatalogHelper.baseUrl') as string;
+    debug = vscode.workspace.getConfiguration().get('backstageCatalogHelper.debug') === true;
 
     if (!backstageBaseUrl) {
         vscode.window.showErrorMessage('Backstage base URL is not configured. Please set it in the settings.');

@@ -32,7 +32,7 @@ Before using the extension, you need to set up your Backstage API URL:
 
 1. Open VS Code settings (File > Preferences > Settings)
 2. Search for "Backstage Catalog Helper"
-3. Enter your Backstage API URL in the "Backstage Autocomplete: Base Url" field
+3. Enter your Backstage API URL in the "Backstage Catalog Helper: Base Url" field
 
 ## Usage
 
@@ -77,7 +77,7 @@ We welcome contributions to improve the Backstage Catalog Helper extension! Plea
 
 ## License
 
-This project is licensed under the MIT License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
