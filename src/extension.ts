@@ -4,43 +4,23 @@ import * as vscode from 'vscode';
 interface BackstageEntityMetadata {
     name: string;
     description?: string;
-    annotations?: Record<string, string>;
-    labels?: Record<string, string>;
-    tags?: string[];
-    links?: Array<{
-        url: string;
-        title?: string;
-        icon?: string;
-        type?: string;
-    }>;
-}
-
-interface BackstageEntitySpec {
-    type?: string;
-    lifecycle?: string;
-    owner?: string;
-    system?: string;
-    [key: string]: any; // For other potential fields in spec
 }
 
 interface BackstageEntity {
     apiVersion: string;
     kind: string;
     metadata: BackstageEntityMetadata;
-    spec: BackstageEntitySpec;
 }
 
-interface BackstageCatalog {
-    entities: BackstageEntity[];
-    systems: Set<BackstageEntity>;
-    groups: Set<BackstageEntity>;
+interface BackstageSuggestions {
+    systems: Map<string, string>;
+    groups: Map<string, string>;
     kinds: Set<string>;
 }
 
-let backstageCatalog: BackstageCatalog = {
-    entities: [],
-    systems: new Set(),
-    groups: new Set(),
+let backstageSuggestions: BackstageSuggestions = {
+    systems: new Map(),
+    groups: new Map(),
     kinds: new Set()
 };
 
@@ -65,28 +45,35 @@ async function fetchAndProcessEntities() {
     const apiUrl = `${backstageBaseUrl}/api`;
 
     try {
-        backstageCatalog = await fetchBackstageEntities(apiUrl);
-        vscode.window.showInformationMessage('Backstage entities fetched successfully!');
+        await fetchBackstageEntities(apiUrl);
+        vscode.window.showInformationMessage('Backstage entities processed successfully!');
     } catch (error: unknown) {
         vscode.window.showErrorMessage('Failed to fetch Backstage entities: ' + (error as Error).message);
     }
 }
 
-async function fetchBackstageEntities(apiUrl: string): Promise<BackstageCatalog> {
+async function fetchBackstageEntities(apiUrl: string): Promise<void> {
     const response = await axios.get<BackstageEntity[]>(`${apiUrl}/catalog/entities`);
     
     if (debug) {
         showDebugInfo(response.data);
     }
 
-    const entities = response.data;
-
-    return {
-        entities,
-        systems: new Set(entities.filter(entity => entity.kind === 'System')),
-        groups: new Set(entities.filter(entity => entity.kind === 'Group')),
-        kinds: new Set(entities.map(entity => entity.kind))
+    backstageSuggestions = {
+        systems: new Map(),
+        groups: new Map(),
+        kinds: new Set()
     };
+
+    for (const entity of response.data) {
+        backstageSuggestions.kinds.add(entity.kind);
+        
+        if (entity.kind === 'System') {
+            backstageSuggestions.systems.set(entity.metadata.name, entity.metadata.description || '');
+        } else if (entity.kind === 'Group') {
+            backstageSuggestions.groups.set(entity.metadata.name, entity.metadata.description || '');
+        }
+    }
 }
 
 function showDebugInfo(data: any) {
@@ -115,24 +102,28 @@ function registerCompletionProviders() {
 }
 
 function provideSystemSuggestions(): vscode.CompletionItem[] {
-    return Array.from(backstageCatalog.systems).map(createCompletionItem);
+    return Array.from(backstageSuggestions.systems.entries()).map(([name, description]) => 
+        createCompletionItem(name, description, 'System')
+    );
 }
 
 function provideGroupSuggestions(): vscode.CompletionItem[] {
-    return Array.from(backstageCatalog.groups).map(createCompletionItem);
+    return Array.from(backstageSuggestions.groups.entries()).map(([name, description]) => 
+        createCompletionItem(name, description, 'Group')
+    );
 }
 
 function provideKindSuggestions(): vscode.CompletionItem[] {
-    return Array.from(backstageCatalog.kinds).map(kind => {
+    return Array.from(backstageSuggestions.kinds).map(kind => {
         const completionItem = new vscode.CompletionItem(kind, vscode.CompletionItemKind.Value);
         completionItem.detail = `Backstage entity kind: ${kind}`;
         return completionItem;
     });
 }
 
-function createCompletionItem(entity: BackstageEntity): vscode.CompletionItem {
-    const completionItem = new vscode.CompletionItem(entity.metadata.name, vscode.CompletionItemKind.Value);
-    completionItem.detail = entity.metadata.description || `${entity.kind} entity`;
+function createCompletionItem(name: string, description: string, kind: string): vscode.CompletionItem {
+    const completionItem = new vscode.CompletionItem(name, vscode.CompletionItemKind.Value);
+    completionItem.detail = description || `${kind} entity`;
     return completionItem;
 }
 
