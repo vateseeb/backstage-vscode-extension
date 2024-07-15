@@ -8,6 +8,10 @@ interface BackstageEntityMetadata {
 
 interface BackstageEntitySpec {
     type?: string;
+    lifecycle?: string;
+    owner?: string;
+    system?: string;
+    [key: string]: any; // For other potential fields in spec
 }
 
 interface BackstageEntity {
@@ -20,15 +24,21 @@ interface BackstageEntity {
 interface BackstageSuggestions {
     systems: Map<string, string>; // name -> description
     groups: Map<string, string>; // name -> description
+    components: Map<string, string>; // name -> description
+    resources: Map<string, string>; // name -> description
     kinds: Set<string>;
     types: Set<string>;
+    lifecycles: Set<string>;
 }
 
 let backstageSuggestions: BackstageSuggestions = {
     systems: new Map(),
     groups: new Map(),
+    components: new Map(),
+    resources: new Map(),
     kinds: new Set(),
-    types: new Set()
+    types: new Set(),
+    lifecycles: new Set()
 };
 
 let debug = false;
@@ -69,21 +79,34 @@ async function fetchBackstageEntities(apiUrl: string): Promise<void> {
     backstageSuggestions = {
         systems: new Map(),
         groups: new Map(),
+        components: new Map(),
+        resources: new Map(),
         kinds: new Set(),
-        types: new Set()
+        types: new Set(),
+        lifecycles: new Set()
     };
 
     for (const entity of response.data) {
         backstageSuggestions.kinds.add(entity.kind);
         
-        if (entity.kind === 'System') {
-            backstageSuggestions.systems.set(entity.metadata.name, entity.metadata.description || '');
-        } else if (entity.kind === 'Group') {
-            backstageSuggestions.groups.set(entity.metadata.name, entity.metadata.description || '');
+        switch(entity.kind) {
+            case 'System':
+                backstageSuggestions.systems.set(entity.metadata.name, entity.metadata.description || '');
+                break;
+            case 'Group':
+                backstageSuggestions.groups.set(entity.metadata.name, entity.metadata.description || '');
+                break;
+            case 'Component':
+                backstageSuggestions.components.set(entity.metadata.name, entity.metadata.description || '');
+                break;
+            case 'Resource':
+                backstageSuggestions.resources.set(entity.metadata.name, entity.metadata.description || '');
+                break;
         }
 
-        if (entity.spec && entity.spec.type) {
-            backstageSuggestions.types.add(entity.spec.type);
+        if (entity.spec) {
+            if (entity.spec.type) backstageSuggestions.types.add(entity.spec.type);
+            if (entity.spec.lifecycle) backstageSuggestions.lifecycles.add(entity.spec.lifecycle);
         }
     }
 }
@@ -101,13 +124,19 @@ function registerCompletionProviders() {
             provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
                 const linePrefix = document.lineAt(position).text.substr(0, position.character);
                 if (linePrefix.endsWith('system: ')) {
-                    return provideSystemSuggestions();
+                    return provideMapSuggestions(backstageSuggestions.systems, 'System');
                 } else if (linePrefix.endsWith('kind: ')) {
-                    return provideKindSuggestions();
+                    return provideSetSuggestions(backstageSuggestions.kinds, 'Kind');
                 } else if (linePrefix.endsWith('owner: ')) {
-                    return provideGroupSuggestions();
+                    return provideMapSuggestions(backstageSuggestions.groups, 'Group');
                 } else if (linePrefix.endsWith('type: ')) {
-                    return provideTypeSuggestions();
+                    return provideSetSuggestions(backstageSuggestions.types, 'Type');
+                } else if (linePrefix.endsWith('lifecycle: ')) {
+                    return provideSetSuggestions(backstageSuggestions.lifecycles, 'Lifecycle');
+                } else if (linePrefix.endsWith('component:')) {
+                    return provideMapSuggestions(backstageSuggestions.components, 'Component');
+                } else if (linePrefix.endsWith('resource:')) {
+                    return provideMapSuggestions(backstageSuggestions.resources, 'Resource');
                 }
                 return undefined;
             }
@@ -115,30 +144,16 @@ function registerCompletionProviders() {
     );
 }
 
-function provideSystemSuggestions(): vscode.CompletionItem[] {
-    return Array.from(backstageSuggestions.systems.entries()).map(([name, description]) => 
-        createCompletionItem(name, description, 'System')
+function provideMapSuggestions(map: Map<string, string>, kind: string): vscode.CompletionItem[] {
+    return Array.from(map.entries()).map(([name, description]) => 
+        createCompletionItem(name, description, kind)
     );
 }
 
-function provideGroupSuggestions(): vscode.CompletionItem[] {
-    return Array.from(backstageSuggestions.groups.entries()).map(([name, description]) => 
-        createCompletionItem(name, description, 'Group')
-    );
-}
-
-function provideKindSuggestions(): vscode.CompletionItem[] {
-    return Array.from(backstageSuggestions.kinds).map(kind => {
-        const completionItem = new vscode.CompletionItem(kind, vscode.CompletionItemKind.Value);
-        completionItem.detail = `Backstage entity kind: ${kind}`;
-        return completionItem;
-    });
-}
-
-function provideTypeSuggestions(): vscode.CompletionItem[] {
-    return Array.from(backstageSuggestions.types).map(type => {
-        const completionItem = new vscode.CompletionItem(type, vscode.CompletionItemKind.Value);
-        completionItem.detail = `Backstage entity type: ${type}`;
+function provideSetSuggestions(set: Set<string>, kind: string): vscode.CompletionItem[] {
+    return Array.from(set).map(value => {
+        const completionItem = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
+        completionItem.detail = `Backstage entity ${kind.toLowerCase()}: ${value}`;
         return completionItem;
     });
 }
