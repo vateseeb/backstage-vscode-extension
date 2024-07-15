@@ -6,22 +6,29 @@ interface BackstageEntityMetadata {
     description?: string;
 }
 
+interface BackstageEntitySpec {
+    type?: string;
+}
+
 interface BackstageEntity {
     apiVersion: string;
     kind: string;
     metadata: BackstageEntityMetadata;
+    spec: BackstageEntitySpec;
 }
 
 interface BackstageSuggestions {
-    systems: Map<string, string>;
-    groups: Map<string, string>;
+    systems: Map<string, string>; // name -> description
+    groups: Map<string, string>; // name -> description
     kinds: Set<string>;
+    types: Set<string>;
 }
 
 let backstageSuggestions: BackstageSuggestions = {
     systems: new Map(),
     groups: new Map(),
-    kinds: new Set()
+    kinds: new Set(),
+    types: new Set()
 };
 
 let debug = false;
@@ -62,7 +69,8 @@ async function fetchBackstageEntities(apiUrl: string): Promise<void> {
     backstageSuggestions = {
         systems: new Map(),
         groups: new Map(),
-        kinds: new Set()
+        kinds: new Set(),
+        types: new Set()
     };
 
     for (const entity of response.data) {
@@ -72,6 +80,10 @@ async function fetchBackstageEntities(apiUrl: string): Promise<void> {
             backstageSuggestions.systems.set(entity.metadata.name, entity.metadata.description || '');
         } else if (entity.kind === 'Group') {
             backstageSuggestions.groups.set(entity.metadata.name, entity.metadata.description || '');
+        }
+
+        if (entity.spec && entity.spec.type) {
+            backstageSuggestions.types.add(entity.spec.type);
         }
     }
 }
@@ -94,6 +106,8 @@ function registerCompletionProviders() {
                     return provideKindSuggestions();
                 } else if (linePrefix.endsWith('owner: ')) {
                     return provideGroupSuggestions();
+                } else if (linePrefix.endsWith('type: ')) {
+                    return provideTypeSuggestions();
                 }
                 return undefined;
             }
@@ -117,6 +131,14 @@ function provideKindSuggestions(): vscode.CompletionItem[] {
     return Array.from(backstageSuggestions.kinds).map(kind => {
         const completionItem = new vscode.CompletionItem(kind, vscode.CompletionItemKind.Value);
         completionItem.detail = `Backstage entity kind: ${kind}`;
+        return completionItem;
+    });
+}
+
+function provideTypeSuggestions(): vscode.CompletionItem[] {
+    return Array.from(backstageSuggestions.types).map(type => {
+        const completionItem = new vscode.CompletionItem(type, vscode.CompletionItemKind.Value);
+        completionItem.detail = `Backstage entity type: ${type}`;
         return completionItem;
     });
 }
