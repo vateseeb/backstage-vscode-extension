@@ -1,6 +1,6 @@
 {
-  "name": "backstage-vscode-extension",
-  "displayName": "Backstage Autocomplete",
+  "name": "backstage-catalog-helper",
+  "displayName": "Backstage Catalog Helper",
   "description": "Connect with your Backstage server to get autocomplete suggestions for your Backstage entities",
   "version": "0.0.1",
   "engines": {
@@ -10,10 +10,22 @@
     "type": "git",
     "url": "https://github.com/vateseeb/backstage-vscode-extension"
   },
+  "activationEvents": [
+    "onCommand:extension.fetchBackstageEntities"
+  ],
+  "publisher": "vatess",
   "categories": [
     "Programming Languages",
     "Snippets"
   ],
+  "keywords": [
+  "backstage",
+  "yaml",
+  "autocomplete",
+  "catalog",
+  "catalog-info"
+  ],
+  "icon": "images/icon.png",
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
