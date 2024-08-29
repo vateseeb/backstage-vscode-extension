@@ -29,6 +29,7 @@ interface BackstageSuggestions {
   kinds: Set<string>;
   types: Set<string>;
   lifecycles: Set<string>;
+  apis: Map<string, string>; // name -> description
 }
 
 let backstageSuggestions: BackstageSuggestions = {
@@ -39,6 +40,7 @@ let backstageSuggestions: BackstageSuggestions = {
   kinds: new Set(),
   types: new Set(),
   lifecycles: new Set(),
+  apis: new Map(),
 };
 
 let debug = false;
@@ -99,6 +101,7 @@ async function fetchBackstageEntities(apiUrl: string): Promise<void> {
     kinds: new Set(),
     types: new Set(),
     lifecycles: new Set(),
+    apis: new Map(),
   };
 
   for (const entity of response.data) {
@@ -125,6 +128,12 @@ async function fetchBackstageEntities(apiUrl: string): Promise<void> {
         break;
       case "Resource":
         backstageSuggestions.resources.set(
+          entity.metadata.name,
+          entity.metadata.description || ""
+        );
+        break;
+      case "API":
+        backstageSuggestions.apis.set(
           entity.metadata.name,
           entity.metadata.description || ""
         );
@@ -205,6 +214,12 @@ function registerCompletionProviders() {
               return provideFilteredMapSuggestions(
                 backstageSuggestions.resources,
                 "Resource",
+                partialValue
+              );
+            case "api":
+              return provideFilteredMapSuggestions(
+                backstageSuggestions.apis,
+                "API",
                 partialValue
               );
           }
