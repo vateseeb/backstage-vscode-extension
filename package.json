@@ -2,7 +2,7 @@
   "name": "backstage-catalog-helper",
   "displayName": "Backstage Catalog Helper",
   "description": "Connect with your Backstage server to get autocomplete suggestions for your Backstage entities",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.91.0"
   },
@@ -19,11 +19,11 @@
     "Snippets"
   ],
   "keywords": [
-  "backstage",
-  "yaml",
-  "autocomplete",
-  "catalog",
-  "catalog-info"
+    "backstage",
+    "yaml",
+    "autocomplete",
+    "catalog",
+    "catalog-info"
   ],
   "icon": "images/icon.png",
   "main": "./out/extension.js",
