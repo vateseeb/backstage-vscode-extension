@@ -14,6 +14,7 @@ Backstage Catalog Helper is a Visual Studio Code extension that enhances your ex
   - Kinds
   - Types
   - Lifecycles
+  - APIs
 - Partial matching: Start typing and get filtered suggestions
 - Description display: See entity descriptions in the autocomplete suggestions
 
@@ -46,6 +47,7 @@ Before using the extension, you need to set up your Backstage API URL:
    - `lifecycle:`
    - `component:`
    - `resource:`
+   - `api:`
 4. The extension will provide autocomplete suggestions based on your Backstage catalog
 5. You can also start typing the entity name after the colon (e.g., `owner: tea`) to get filtered suggestions
 
@@ -62,6 +64,7 @@ spec:
   lifecycle: pr  # Start typing here and get suggestions
   owner: tea  # Start typing here and get suggestions
   system: pub  # Start typing here and get suggestions
+  api: pub  # Start typing here and get suggestions
 ```
 
 ## Troubleshooting
