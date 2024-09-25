@@ -35,6 +35,59 @@ Before using the extension, you need to set up your Backstage API URL:
 2. Search for "Backstage Catalog Helper"
 3. Enter your Backstage API URL in the "Backstage Catalog Helper: Base Url" field
 
+## Authentication
+
+The VS Code extension supports authentication when fetching entities from Backstage. Two authentication methods are supported:
+
+- **Bearer Token Authentication**
+- **Basic Authentication**
+
+### Bearer Token Authentication
+
+To use bearer token authentication, configure the following:
+
+1. Set the authentication method to **Bearer Token** in your VS Code settings:
+   - Open VS Code `Settings` (`File` > `Preferences` > `Settings`).
+   - Search for `backstageCatalogHelper.authMethod`.
+   - Choose `Bearer Token` from the dropdown menu.
+
+2. The extension will prompt you to enter your Backstage API token the first time it attempts to fetch entities.
+
+3. Configure your Backstage server to support bearer token authentication. Add a static token to the `app-config.production.yaml` file as follows:
+
+    ```yaml
+    backend:
+      auth:
+        externalAccess:
+          - type: static
+            options:
+              token: ${VS_CODE_TOKEN}
+              subject: vs-code-extension
+            accessRestrictions:
+              - plugin: catalog
+    ```
+
+    Replace `${VS_CODE_TOKEN}` with your actual token value. Refer to the [Backstage documentation](https://backstage.io/docs/auth/service-to-service-auth#static-tokens) for more details on static token setup.
+
+### Basic Authentication
+
+Basic authentication allows the use of a username and password for authentication. To use basic authentication:
+
+1. Set the authentication method to **Basic Auth** in your VS Code settings:
+   - Open VS Code `Settings` (`File` > `Preferences` > `Settings`).
+   - Search for `backstageCatalogHelper.authMethod`.
+   - Choose `Basic Auth` from the dropdown menu.
+
+2. You will be prompted to enter your Backstage username and password the first time the extension attempts to fetch entities. These credentials are securely stored in VS Code's secret storage.
+
+### Changing Authentication Methods
+
+You can switch between the authentication methods at any time:
+
+- Open the VS Code `Settings` and change the value of `backstageCatalogHelper.authMethod` to either `Basic Auth` or `Bearer Token`.
+- The extension will prompt you to provide the necessary credentials for the new authentication method on the next entity fetch attempt.
+
+
 ## Usage
 
 1. Open a `catalog-info.yaml` file in VS Code

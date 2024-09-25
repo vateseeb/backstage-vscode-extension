@@ -46,14 +46,15 @@ let backstageSuggestions: BackstageSuggestions = {
 let debug = false;
 
 export function activate(context: vscode.ExtensionContext) {
-    const disposable = vscode.commands.registerCommand('extension.fetchBackstageEntities', fetchAndProcessEntities);
+    const disposable = vscode.commands.registerCommand('extension.fetchBackstageEntities', () => fetchAndProcessEntities(context));
     context.subscriptions.push(disposable);
 
     registerCompletionProviders();
 }
 
-async function fetchAndProcessEntities() {
+async function fetchAndProcessEntities(context: vscode.ExtensionContext) {
     const backstageBaseUrl = vscode.workspace.getConfiguration().get('backstageCatalogHelper.baseUrl') as string;
+    let authMethod = vscode.workspace.getConfiguration().get('backstageCatalogHelper.authMethod') as string;
     debug = vscode.workspace.getConfiguration().get('backstageCatalogHelper.debug') === true;
 
     if (!backstageBaseUrl) {
@@ -64,15 +65,58 @@ async function fetchAndProcessEntities() {
     const apiUrl = `${backstageBaseUrl}/api`;
 
     try {
-        await fetchBackstageEntities(apiUrl);
+        await fetchBackstageEntities(apiUrl, authMethod, context);
         vscode.window.showInformationMessage('Backstage entities processed successfully!');
     } catch (error: unknown) {
-        vscode.window.showErrorMessage('Failed to fetch Backstage entities: ' + (error as Error).message);
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+            const action = await vscode.window.showErrorMessage(
+                'Authentication failed. Would you like to re-enter your credentials or change the authentication method?',
+                'Re-enter Credentials',
+                'Change Auth Method'
+            );
+
+            if (action === 'Re-enter Credentials') {
+                await clearStoredCredentials(context, authMethod);
+                // Retry fetching with cleared credentials (will prompt for new ones)
+                await fetchAndProcessEntities(context);
+            } else if (action === 'Change Auth Method') {
+                const newAuthMethod = await promptForAuthMethod();
+                if (newAuthMethod) {
+                    await updateAuthMethodSetting(newAuthMethod);
+                    // Retry fetching with the new auth method
+                    await fetchAndProcessEntities(context);
+                }
+            }
+        } else {
+            vscode.window.showErrorMessage('Failed to fetch Backstage entities: ' + (error as Error).message);
+        }
     }
 }
 
-async function fetchBackstageEntities(apiUrl: string): Promise<void> {
-    const response = await axios.get<BackstageEntity[]>(`${apiUrl}/catalog/entities`);
+async function fetchBackstageEntities(apiUrl: string, authMethod: string, context: vscode.ExtensionContext): Promise<void> {
+    let headers = {};
+    
+    if (authMethod === 'basic') {
+        const credentials = await getCredentials(context);
+        if (credentials) {
+            headers = {
+                'Authorization': `Basic ${Buffer.from(`${credentials.username}:${credentials.password}`).toString('base64')}`
+            };
+        } else {
+            throw new Error('Failed to get credentials');
+        }
+    } else if (authMethod === 'bearer') {
+        const token = await getToken(context);
+        if (token) {
+            headers = {
+                'Authorization': `Bearer ${token}`
+            };
+        } else {
+            throw new Error('Failed to get token');
+        }
+    }
+
+    const response = await axios.get<BackstageEntity[]>(`${apiUrl}/catalog/entities`, { headers });
     
     if (debug) {
         showDebugInfo(response.data);
@@ -114,6 +158,77 @@ async function fetchBackstageEntities(apiUrl: string): Promise<void> {
             if (entity.spec.type) backstageSuggestions.types.add(entity.spec.type);
             if (entity.spec.lifecycle) backstageSuggestions.lifecycles.add(entity.spec.lifecycle);
         }
+    }
+}
+
+async function promptForAuthMethod(): Promise<string | undefined> {
+    const options = ['Basic Auth', 'Bearer Token', 'No Auth'];
+    const selected = await vscode.window.showQuickPick(options, {
+        placeHolder: 'Select an authentication method'
+    });
+
+    switch (selected) {
+        case 'Basic Auth':
+            return 'basic';
+        case 'Bearer Token':
+            return 'bearer';
+        case 'No Auth':
+            return 'none';
+        default:
+            return undefined;
+    }
+}
+
+async function updateAuthMethodSetting(authMethod: string) {
+    await vscode.workspace.getConfiguration().update('backstageCatalogHelper.authMethod', authMethod, vscode.ConfigurationTarget.Global);
+}
+
+async function getCredentials(context: vscode.ExtensionContext): Promise<{ username: string, password: string } | undefined> {
+    const secretStorage = context.secrets;
+    
+    let username = await secretStorage.get('backstage-username');
+    let password = await secretStorage.get('backstage-password');
+
+    if (!username || !password) {
+        username = await vscode.window.showInputBox({ prompt: 'Enter your Backstage username' });
+        password = await vscode.window.showInputBox({ prompt: 'Enter your Backstage password', password: true });
+
+        if (username && password) {
+            await secretStorage.store('backstage-username', username);
+            await secretStorage.store('backstage-password', password);
+        } else {
+            return undefined;
+        }
+    }
+
+    return { username, password };
+}
+
+async function getToken(context: vscode.ExtensionContext): Promise<string | undefined> {
+    const secretStorage = context.secrets;
+    
+    let token = await secretStorage.get('backstage-token');
+
+    if (!token) {
+        token = await vscode.window.showInputBox({ prompt: 'Enter your Backstage API token' });
+
+        if (token) {
+            await secretStorage.store('backstage-token', token);
+        } else {
+            return undefined;
+        }
+    }
+
+    return token;
+}
+
+async function clearStoredCredentials(context: vscode.ExtensionContext, authMethod: string) {
+    const secretStorage = context.secrets;
+    if (authMethod === 'basic') {
+        await secretStorage.delete('backstage-username');
+        await secretStorage.delete('backstage-password');
+    } else if (authMethod === 'bearer') {
+        await secretStorage.delete('backstage-token');
     }
 }
 

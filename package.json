@@ -2,7 +2,7 @@
   "name": "backstage-catalog-helper",
   "displayName": "Backstage Catalog Helper",
   "description": "Connect with your Backstage server to get autocomplete suggestions for your Backstage entities",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "engines": {
     "vscode": "^1.91.0"
   },
@@ -46,6 +46,12 @@
           "type": "boolean",
           "default": false,
           "description": "Enable debug mode for the Backstage Catalog Helper extension"
+        },
+        "backstageCatalogHelper.authMethod": {
+          "type": "string",
+          "enum": ["none", "basic", "bearer"],
+          "default": "none",
+          "description": "Authentication method for Backstage API"
         }
       }
     }
