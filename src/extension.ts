@@ -244,7 +244,7 @@ function registerCompletionProviders() {
         {
             provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
                 const linePrefix = document.lineAt(position).text.substr(0, position.character);
-                const match = linePrefix.match(/(\w+):\s*(\w*)$/);
+                const match = linePrefix.match(/^\s*-?\s*(\w+):\s*([\w-]*)$/);
                 
                 if (match) {
                     const [, key, partialValue] = match;
